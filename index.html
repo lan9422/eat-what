@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍜 外卖选择大转盘 - 可编辑100种美食</title>
+    <style>
+        :root {
+            --bg: #fff8f0;
+            --card-bg: #ffffff;
+            --text: #4a3028;
+            --accent: #e85d3a;
+            --accent-hover: #c94a2a;
+            --gold: #d4a843;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.10);
+            --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.14);
+            --modal-bg: rgba(0, 0, 0, 0.55);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+            background: linear-gradient(160deg, #fff3e6 0%, #ffe8d6 30%, #fff0e3 60%, #fef5ec 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: filter 0.3s;
+        }
+        body.modal-open {
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: -120px;
+            right: -120px;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(255, 180, 120, 0.25) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -100px;
+            left: -100px;
+            width: 350px;
+            height: 350px;
+            background: radial-gradient(circle, rgba(255, 200, 140, 0.20) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .main-container {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+            max-width: 620px;
+        }
+
+        .title-area {
+            text-align: center;
+        }
+        .title {
+            font-size: clamp(1.5rem, 3.5vw, 2rem);
+            font-weight: 800;
+            color: #4a3028;
+            letter-spacing: 0.04em;
+            line-height: 1.3;
+        }
+        .title .emoji {
+            display: inline-block;
+            animation: bounce-emoji 2s ease-in-out infinite;
+            font-size: 1.2em;
+        }
+        .title .emoji:nth-child(1) {
+            animation-delay: 0s;
+        }
+        .title .emoji:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes bounce-emoji {
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-12px);
+            }
+            50% {
+                transform: translateY(0);
+            }
+            70% {
+                transform: translateY(-6px);
+            }
+            85% {
+                transform: translateY(0);
+            }
+        }
+        .subtitle {
+            font-size: 0.85rem;
+            color: #9b7b6b;
+            margin-top: 2px;
+            letter-spacing: 0.06em;
+        }
+        .food-count-badge {
+            display: inline-block;
+            background: #fce8d5;
+            color: #b8753e;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 10px;
+            border-radius: 12px;
+            margin-left: 6px;
+            vertical-align: middle;
+            letter-spacing: 0.04em;
+        }
+
+        .wheel-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 520px;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .wheel-glow {
+            position: absolute;
+            inset: -6%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 160, 100, 0.18) 0%, rgba(255, 200, 150, 0.06) 55%, transparent 72%);
+            pointer-events: none;
+            z-index: 0;
+            animation: glow-pulse 3s ease-in-out infinite;
+        }
+        @keyframes glow-pulse {
+            0%,
+            100% {
+                opacity: 0.7;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.04);
+            }
+        }
+        canvas {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            max-width: 520px;
+            max-height: 520px;
+            cursor: pointer;
+            filter: drop-shadow(0 6px 24px rgba(0, 0, 0, 0.12));
+            transition: filter 0.4s;
+        }
+        canvas:hover {
+            filter: drop-shadow(0 10px 32px rgba(0, 0, 0, 0.18));
+        }
+        canvas.spinning {
+            cursor: default;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 32px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+            white-space: nowrap;
+        }
+        .btn-start {
+            color: #fff;
+            background: linear-gradient(135deg, #e85d3a 0%, #f0734e 50%, #e85d3a 100%);
+            background-size: 200% 100%;
+            box-shadow: 0 6px 24px rgba(232, 93, 58, 0.35);
+            animation: btn-shimmer 3s ease-in-out infinite;
+        }
+        @keyframes btn-shimmer {
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+        .btn-start:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 32px rgba(232, 93, 58, 0.45);
+        }
+        .btn-start:active:not(:disabled) {
+            transform: translateY(-1px) scale(0.97);
+            box-shadow: 0 4px 16px rgba(232, 93, 58, 0.35);
+            transition: all 0.1s;
+        }
+        .btn-start:disabled {
+            background: #c9b8ae;
+            cursor: not-allowed;
+            box-shadow: 0 4px 14px rgba(180, 150, 130, 0.25);
+            animation: none;
+            opacity: 0.75;
+        }
+        .btn-start .btn-icon {
+            display: inline-block;
+            font-size: 1.3em;
+            transition: transform 0.3s;
+        }
+        .btn-start:not(:disabled):hover .btn-icon {
+            transform: rotate(15deg) scale(1.15);
+        }
+        .btn-start.spinning-active .btn-icon {
+            animation: spin-icon 0.6s linear infinite;
+        }
+        @keyframes spin-icon {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .btn-edit {
+            color: #5D3A1A;
+            background: #fff;
+            border: 2px solid #e0c8a8;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        }
+        .btn-edit:hover {
+            background: #fffaf5;
+            border-color: #d4a870;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
+        }
+        .btn-edit:active {
+            transform: scale(0.96);
+            transition: all 0.1s;
+        }
+        .btn-edit .btn-icon {
+            font-size: 1.2em;
+        }
+
+        .result-area {
+            min-height: 55px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.4s;
+        }
+        .result-card {
+            background: var(--card-bg);
+            border-radius: 18px;
+            padding: 14px 24px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            opacity: 0;
+            transform: translateY(16px) scale(0.92);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+        }
+        .result-card.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+        .result-label {
+            font-size: 0.8rem;
+            color: #9b7b6b;
+            letter-spacing: 0.05em;
+            margin-bottom: 2px;
+        }
+        .result-food {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #4a3028;
+            letter-spacing: 0.04em;
+            background: linear-gradient(135deg, #e85d3a, #f0a050);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .result-emoji {
+            font-size: 1.8rem;
+            display: block;
+            margin-bottom: 2px;
+            animation: pop-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes pop-in {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            70% {
+                transform: scale(1.25);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* ========== 模态框 ========== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: var(--modal-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.35s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal {
+            background: #fffdf9;
+            border-radius: 22px;
+            width: 100%;
+            max-width: 560px;
+            max-height: 82vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+            transform: translateY(30px) scale(0.94);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow: hidden;
+        }
+        .modal-overlay.active .modal {
+            transform: translateY(0) scale(1);
+        }
+        .modal-header {
+            padding: 18px 22px 14px;
+            border-bottom: 1px solid #f0e2d2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .modal-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #4a3028;
+            letter-spacing: 0.03em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: #f5e8d8;
+            color: #8b6b4a;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s;
+            flex-shrink: 0;
+        }
+        .modal-close:hover {
+            background: #e8d0b8;
+            color: #4a3028;
+            transform: rotate(90deg);
+        }
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 18px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overscroll-behavior: contain;
+        }
+        .modal-body::-webkit-scrollbar {
+            width: 5px;
+        }
+        .modal-body::-webkit-scrollbar-track {
+            background: transparent;
+            border-radius: 10px;
+        }
+        .modal-body::-webkit-scrollbar-thumb {
+            background: #dcc8b0;
+            border-radius: 10px;
+        }
+        .food-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: #fffefb;
+            border: 1px solid #f2e6d8;
+            transition: all 0.2s;
+            min-height: 48px;
+        }
+        .food-item:hover {
+            background: #fff9f2;
+            border-color: #e0c8a0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        .food-item .index-num {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #fce8d5;
+            color: #b8753e;
+            font-weight: 700;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .food-item .food-name-display {
+            flex: 1;
+            font-weight: 600;
+            color: #4a3028;
+            font-size: 0.95rem;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            word-break: break-all;
+            min-width: 0;
+        }
+        .food-item .food-name-display:hover {
+            background: #fff3e6;
+            color: #e85d3a;
+        }
+        .food-item .food-name-input {
+            flex: 1;
+            font-weight: 600;
+            color: #4a3028;
+            font-size: 0.95rem;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 2px solid #e85d3a;
+            background: #fffdf9;
+            outline: none;
+            font-family: inherit;
+            min-width: 0;
+            box-shadow: 0 0 0 3px rgba(232, 93, 58, 0.08);
+        }
+        .food-item .btn-sm {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .btn-edit-item {
+            background: #fef0e0;
+            color: #d48540;
+        }
+        .btn-edit-item:hover {
+            background: #fde0c0;
+            color: #b86020;
+            transform: scale(1.08);
+        }
+        .btn-delete-item {
+            background: #fde8e4;
+            color: #d45440;
+        }
+        .btn-delete-item:hover {
+            background: #fcd0c8;
+            color: #a83020;
+            transform: scale(1.08);
+        }
+        .btn-save-item {
+            background: #e8f5e9;
+            color: #3d8b40;
+        }
+        .btn-save-item:hover {
+            background: #c8e6c9;
+            color: #2e6b30;
+            transform: scale(1.08);
+        }
+        .btn-cancel-item {
+            background: #f5f5f5;
+            color: #888;
+        }
+        .btn-cancel-item:hover {
+            background: #e0e0e0;
+            color: #555;
+            transform: scale(1.08);
+        }
+
+        .modal-footer {
+            padding: 14px 18px 18px;
+            border-top: 1px solid #f0e2d2;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .add-input {
+            flex: 1;
+            min-width: 130px;
+            padding: 10px 14px;
+            border-radius: 25px;
+            border: 2px solid #e0c8a8;
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            background: #fffefb;
+            transition: all 0.2s;
+            color: #4a3028;
+        }
+        .add-input:focus {
+            border-color: #e85d3a;
+            box-shadow: 0 0 0 4px rgba(232, 93, 58, 0.06);
+        }
+        .add-input::placeholder {
+            color: #c0a890;
+        }
+        .btn-add {
+            padding: 10px 20px;
+            border-radius: 25px;
+            border: none;
+            background: #5d9b5a;
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            letter-spacing: 0.03em;
+            transition: all 0.25s;
+            white-space: nowrap;
+        }
+        .btn-add:hover {
+            background: #4a8247;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 14px rgba(90, 150, 85, 0.35);
+        }
+        .btn-reset {
+            padding: 10px 18px;
+            border-radius: 25px;
+            border: 2px solid #e0c8a8;
+            background: #fff;
+            color: #8b6b4a;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            letter-spacing: 0.03em;
+            transition: all 0.25s;
+            white-space: nowrap;
+        }
+        .btn-reset:hover {
+            background: #fef5ec;
+            border-color: #d4a870;
+            color: #5D3A1A;
+        }
+
+        .empty-hint {
+            text-align: center;
+            color: #c0a890;
+            padding: 30px;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 480px) {
+            .main-container {
+                gap: 14px;
+            }
+            .wheel-wrapper {
+                max-width: 90vw;
+            }
+            canvas {
+                max-width: 90vw;
+                max-height: 90vw;
+            }
+            .btn {
+                padding: 12px 22px;
+                font-size: 0.9rem;
+                gap: 5px;
+            }
+            .title {
+                font-size: 1.2rem;
+            }
+            .result-food {
+                font-size: 1.1rem;
+            }
+            .result-card {
+                padding: 10px 18px;
+                border-radius: 14px;
+            }
+            .modal {
+                max-width: 96vw;
+                max-height: 88vh;
+                border-radius: 18px;
+            }
+            .modal-header {
+                padding: 14px 16px 10px;
+            }
+            .modal-body {
+                padding: 10px 12px 8px;
+            }
+            .food-item {
+                padding: 8px 10px;
+                gap: 6px;
+            }
+            .food-item .index-num {
+                width: 26px;
+                height: 26px;
+                font-size: 0.7rem;
+            }
+            .food-item .food-name-display,
+            .food-item .food-name-input {
+                font-size: 0.85rem;
+            }
+            .btn-row {
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <!-- 标题 -->
+        <div class="title-area">
+            <h1 class="title">
+                <span class="emoji">🍜</span> 外卖选择大转盘 <span class="emoji">🍕</span>
+            </h1>
+            <p class="subtitle">
+                告别纠结症
+                <span class="food-count-badge" id="foodCountBadge">100种</span>
+            </p>
+        </div>
+
+        <!-- 转盘 -->
+        <div class="wheel-wrapper" id="wheelWrapper">
+            <div class="wheel-glow"></div>
+            <canvas id="wheelCanvas" width="600" height="600" aria-label="外卖转盘"></canvas>
+        </div>
+
+        <!-- 按钮行 -->
+        <div class="btn-row">
+            <button class="btn btn-start" id="btnStart" title="点击开始旋转转盘">
+                <span class="btn-icon">🎯</span> 开始旋转！
+            </button>
+            <button class="btn btn-edit" id="btnOpenModal" title="编辑外卖菜单">
+                <span class="btn-icon">✏️</span> 编辑菜单
+            </button>
+        </div>
+
+        <!-- 结果展示 -->
+        <div class="result-area" id="resultArea">
+            <div class="result-card visible" id="resultCard">
+                <span class="result-emoji" id="resultEmoji">🎉</span>
+                <div class="result-label">指针指向</div>
+                <div class="result-food" id="resultFood">--</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑模态框 -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📋 编辑外卖菜单</h2>
+                <button class="modal-close" id="btnCloseModal" title="关闭">✕</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- 动态渲染食物列表 -->
+            </div>
+            <div class="modal-footer">
+                <input type="text" class="add-input" id="addInput" placeholder="输入新菜品名称..." maxlength="20">
+                <button class="btn-add" id="btnAddFood">＋ 添加</button>
+                <button class="btn-reset" id="btnResetDefault">🔄 恢复默认</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ==================== 默认100种外卖 ====================
+            const DEFAULT_FOOD_LIST = [
+                '麻辣烫', '黄焖鸡米饭', '沙县小吃', '兰州拉面', '炸鸡汉堡',
+                '披萨', '寿司', '螺蛳粉', '过桥米线', '煲仔饭',
+                '盖浇饭', '酸菜鱼', '麻辣香锅', '烧烤', '炸串',
+                '关东煮', '煎饼果子', '肉夹馍', '凉皮', '饺子',
+                '馄饨', '生煎包', '小笼包', '肠粉', '蛋炒饭',
+                '卤肉饭', '叉烧饭', '烧鸭饭', '猪脚饭', '牛腩饭',
+                '咖喱饭', '石锅拌饭', '韩式炸鸡', '日式拉面', '鳗鱼饭',
+                '牛丼', '泰式炒河粉', '冬阴功', '越南河粉', '意大利面',
+                '牛排', '沙拉', '三明治', '酸辣粉', '担担面',
+                '重庆小面', '热干面', '炸酱面', '刀削面', '油泼面',
+                '葱油拌面', '鸭血粉丝汤', '羊肉泡馍', '海南鸡饭', '干锅',
+                '烤鱼', '照烧鸡腿饭', '蜜汁叉烧', '红烧肉饭', '糖醋里脊饭',
+                '鱼香肉丝饭', '宫保鸡丁饭', '麻婆豆腐饭', '回锅肉饭', '水煮肉片饭',
+                '番茄牛腩饭', '烤鸡', '炸鱼薯条', '墨西哥卷饼', '土耳其烤肉',
+                '印度咖喱', '部队锅', '寿喜烧', '天妇罗', '亲子丼',
+                '乌冬面', '炒面', '扬州炒饭', '白切鸡饭', '烧鹅饭',
+                '烤鸭饭', '海鲜炒饭', '龙虾卷', '热狗', '薯条',
+                '汉堡', '纸包鱼', '烤鱼饭', '酸菜鱼饭', '干锅鸡',
+                '干锅牛蛙', '毛血旺', '水煮鱼', '剁椒鱼头', '蒜蓉粉丝虾',
+                '糖醋排骨', '京酱肉丝', '地三鲜', '木须肉', '锅包肉'
+            ];
+
+            const STORAGE_KEY = 'foodWheelCustomList_v2';
+            const MIN_FOOD_COUNT = 6;
+            const MAX_FOOD_COUNT = 200;
+
+            // ==================== 加载食物列表 ====================
+            function loadFoodList() {
+                try {
+                    const stored = localStorage.getItem(STORAGE_KEY);
+                    if (stored) {
+                        const parsed = JSON.parse(stored);
+                        if (Array.isArray(parsed) && parsed.length >= MIN_FOOD_COUNT && parsed.every(item => typeof item ===
+                                'string' && item.trim().length > 0)) {
+                            return parsed.map(s => s.trim()).filter(s => s.length > 0);
+                        }
+                    }
+                } catch (e) {
+                    // ignore
+                }
+                return [...DEFAULT_FOOD_LIST];
+            }
+
+            function saveFoodList(list) {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+                } catch (e) {
+                    // storage full, ignore
+                }
+            }
+
+            let foodList = loadFoodList();
+
+            // 确保数量在合理范围
+            if (foodList.length < MIN_FOOD_COUNT) {
+                foodList = [...DEFAULT_FOOD_LIST];
+                saveFoodList(foodList);
+            }
+            if (foodList.length > MAX_FOOD_COUNT) {
+                foodList = foodList.slice(0, MAX_FOOD_COUNT);
+                saveFoodList(foodList);
+            }
+
+            // ==================== DOM元素 ====================
+            const canvas = document.getElementById('wheelCanvas');
+            const ctx = canvas.getContext('2d');
+            const btnStart = document.getElementById('btnStart');
+            const btnOpenModal = document.getElementById('btnOpenModal');
+            const resultCard = document.getElementById('resultCard');
+            const resultFood = document.getElementById('resultFood');
+            const resultEmoji = document.getElementById('resultEmoji');
+            const foodCountBadge = document.getElementById('foodCountBadge');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const modalBody = document.getElementById('modalBody');
+            const btnCloseModal = document.getElementById('btnCloseModal');
+            const addInput = document.getElementById('addInput');
+            const btnAddFood = document.getElementById('btnAddFood');
+            const btnResetDefault = document.getElementById('btnResetDefault');
+
+            const CX = canvas.width / 2;
+            const CY = canvas.height / 2;
+            const OUTER_RADIUS = 272;
+            const CENTER_CIRCLE_RADIUS = 42;
+            const POINTER_TIP_OFFSET = 8;
+
+            // ==================== 动态计算参数 ====================
+            function getSectorAngle() {
+                return (2 * Math.PI) / foodList.length;
+            }
+            function getTextRadiusRange() {
+                const n = foodList.length;
+                if (n <= 20) return { inner: 100, outer: 260 };
+                if (n <= 40) return { inner: 110, outer: 258 };
+                if (n <= 70) return { inner: 120, outer: 256 };
+                if (n <= 100) return { inner: 130, outer: 255 };
+                if (n <= 150) return { inner: 145, outer: 253 };
+                return { inner: 155, outer: 250 };
+            }
+            function getCharSize() {
+                const n = foodList.length;
+                if (n <= 15) return 13;
+                if (n <= 25) return 11;
+                if (n <= 40) return 10;
+                if (n <= 70) return 9;
+                if (n <= 100) return 8;
+                if (n <= 150) return 7;
+                return 6;
+            }
+
+            // ==================== 颜色方案 ====================
+            const sectorColors = [
+                '#FFE8D6', '#FFC9A3', '#FFE0C8', '#FFD4B2', '#FFECD2',
+                '#FFDDC4', '#FFEBD9', '#FFD9BB', '#FFE4CC', '#FFCEA8',
+            ];
+            const TEXT_COLOR = '#5D3A1A';
+
+            // ==================== 离屏Canvas ====================
+            const offscreenCanvas = document.createElement('canvas');
+            offscreenCanvas.width = canvas.width;
+            offscreenCanvas.height = canvas.height;
+            const offCtx = offscreenCanvas.getContext('2d');
+
+            function drawSectorsOnOffscreen() {
+                offCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+                const total = foodList.length;
+                const sectorAngle = getSectorAngle();
+                const textRange = getTextRadiusRange();
+                const charSize = getCharSize();
+                const charSpacing = 1.1;
+
+                for (let i = 0; i < total; i++) {
+                    const startAngle = i * sectorAngle;
+                    const endAngle = (i + 1) * sectorAngle;
+                    const color = sectorColors[i % sectorColors.length];
+
+                    offCtx.beginPath();
+                    offCtx.moveTo(CX, CY);
+                    offCtx.arc(CX, CY, OUTER_RADIUS, startAngle, endAngle);
+                    offCtx.closePath();
+                    offCtx.fillStyle = color;
+                    offCtx.fill();
+
+                    offCtx.beginPath();
+                    offCtx.moveTo(CX, CY);
+                    offCtx.arc(CX, CY, OUTER_RADIUS, startAngle, endAngle);
+                    offCtx.lineTo(CX, CY);
+                    offCtx.strokeStyle = 'rgba(180,140,110,0.12)';
+                    offCtx.lineWidth = 0.5;
+                    offCtx.stroke();
+                }
+
+                for (let i = 0; i < total; i++) {
+                    const midAngle = (i + 0.5) * sectorAngle;
+                    let name = foodList[i];
+                    if (name.length > 6 && total > 80) name = name.slice(0, 5) + '…';
+                    if (name.length > 8 && total > 40) name = name.slice(0, 7) + '…';
+
+                    offCtx.save();
+                    offCtx.translate(CX, CY);
+                    offCtx.rotate(midAngle);
+
+                    const totalTextHeight = name.length * charSize + (name.length - 1) * charSpacing;
+                    const availableR = textRange.outer - textRange.inner;
+                    const startR = textRange.inner + Math.max(0, (availableR - totalTextHeight) / 2);
+
+                    offCtx.fillStyle = TEXT_COLOR;
+                    offCtx.font =
+                        `bold ${charSize}px "PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",sans-serif`;
+                    offCtx.textAlign = 'center';
+                    offCtx.textBaseline = 'middle';
+
+                    for (let j = 0; j < name.length; j++) {
+                        const x = startR + j * (charSize + charSpacing);
+                        offCtx.fillText(name[j], x, 0);
+                    }
+                    offCtx.restore();
+                }
+
+                // 外圈装饰环
+                offCtx.beginPath();
+                offCtx.arc(CX, CY, OUTER_RADIUS + 2, 0, 2 * Math.PI);
+                offCtx.strokeStyle = '#c8946b';
+                offCtx.lineWidth = 4;
+                offCtx.stroke();
+                offCtx.beginPath();
+                offCtx.arc(CX, CY, OUTER_RADIUS + 7, 0, 2 * Math.PI);
+                offCtx.strokeStyle = '#e8c9a8';
+                offCtx.lineWidth = 2.5;
+                offCtx.stroke();
+
+                const bulbCount = Math.min(60, Math.floor(foodList.length * 0.6));
+                for (let i = 0; i < bulbCount; i++) {
+                    const angle = (i / bulbCount) * 2 * Math.PI;
+                    const bx = CX + (OUTER_RADIUS + 5) * Math.cos(angle);
+                    const by = CY + (OUTER_RADIUS + 5) * Math.sin(angle);
+                    offCtx.beginPath();
+                    offCtx.arc(bx, by, 2.2, 0, 2 * Math.PI);
+                    offCtx.fillStyle = i % 2 === 0 ? '#fce4c8' : '#d4a870';
+                    offCtx.fill();
+                }
+            }
+
+            function fullRedrawOffscreen() {
+                drawSectorsOnOffscreen();
+                drawMainCanvas();
+                updateFoodCountBadge();
+            }
+
+            // ==================== 状态管理 ====================
+            let currentRotation = 0;
+            let isSpinning = false;
+            let animationId = null;
+            let highlightSectorIndex = -1;
+            let highlightAlpha = 0;
+            let isModalOpen = false;
+
+            function drawMainCanvas() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.save();
+                ctx.translate(CX, CY);
+                ctx.rotate(currentRotation);
+                ctx.drawImage(offscreenCanvas, -CX, -CY);
+                ctx.restore();
+
+                // 中心装饰圆
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(CX, CY, CENTER_CIRCLE_RADIUS + 3, 0, 2 * Math.PI);
+                ctx.fillStyle = 'rgba(0,0,0,0.07)';
+                ctx.fill();
+                ctx.restore();
+
+                const centerGrad = ctx.createRadialGradient(CX - 5, CY - 8, CENTER_CIRCLE_RADIUS * 0.1, CX, CY,
+                    CENTER_CIRCLE_RADIUS);
+                centerGrad.addColorStop(0, '#fffef9');
+                centerGrad.addColorStop(0.55, '#f8e8d8');
+                centerGrad.addColorStop(1, '#d4a870');
+                ctx.beginPath();
+                ctx.arc(CX, CY, CENTER_CIRCLE_RADIUS, 0, 2 * Math.PI);
+                ctx.fillStyle = centerGrad;
+                ctx.fill();
+                ctx.strokeStyle = '#b88150';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+
+                ctx.fillStyle = '#5D3A1A';
+                ctx.font = 'bold 13px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('GO', CX, CY - 1);
+
+                drawPointer();
+                if (highlightSectorIndex >= 0 && highlightSectorIndex < foodList.length && highlightAlpha > 0.01) {
+                    drawHighlightSector(highlightSectorIndex, highlightAlpha);
+                }
+            }
+
+            function drawPointer() {
+                const pointerTipY = CY - OUTER_RADIUS + POINTER_TIP_OFFSET;
+                const pointerBaseY = pointerTipY - 38;
+                const pointerHalfWidth = 18;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(CX, pointerTipY + 2);
+                ctx.lineTo(CX - pointerHalfWidth, pointerBaseY + 4);
+                ctx.lineTo(CX + pointerHalfWidth, pointerBaseY + 4);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(0,0,0,0.14)';
+                ctx.fill();
+
+                const pointerGrad = ctx.createLinearGradient(CX, pointerBaseY, CX, pointerTipY);
+                pointerGrad.addColorStop(0, '#d4342e');
+                pointerGrad.addColorStop(0.5, '#f54b3d');
+                pointerGrad.addColorStop(1, '#c0201a');
+                ctx.beginPath();
+                ctx.moveTo(CX, pointerTipY);
+                ctx.lineTo(CX - pointerHalfWidth, pointerBaseY);
+                ctx.quadraticCurveTo(CX, pointerBaseY + 6, CX + pointerHalfWidth, pointerBaseY);
+                ctx.closePath();
+                ctx.fillStyle = pointerGrad;
+                ctx.fill();
+                ctx.strokeStyle = '#8b1a14';
+                ctx.lineWidth = 1.8;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(CX, pointerTipY + 2);
+                ctx.lineTo(CX - 6, pointerBaseY + 12);
+                ctx.lineTo(CX + 1, pointerBaseY + 10);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(255,255,255,0.22)';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(CX, pointerBaseY - 3, 5, 0, 2 * Math.PI);
+                ctx.fillStyle = '#f54b3d';
+                ctx.fill();
+                ctx.strokeStyle = '#8b1a14';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(CX, pointerBaseY - 3, 2.5, 0, 2 * Math.PI);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.restore();
+            }
+
+            function drawHighlightSector(sectorIndex, alpha) {
+                const sectorAngle = getSectorAngle();
+                const startAngle = sectorIndex * sectorAngle + currentRotation;
+                const endAngle = (sectorIndex + 1) * sectorAngle + currentRotation;
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(CX, CY);
+                ctx.arc(CX, CY, OUTER_RADIUS, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = `rgba(255, 215, 60, ${alpha * 0.5})`;
+                ctx.fill();
+                ctx.strokeStyle = `rgba(255, 160, 30, ${alpha * 0.8})`;
+                ctx.lineWidth = 3.5;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(CX, CY);
+                ctx.arc(CX, CY, OUTER_RADIUS + 4, startAngle - 0.01, endAngle + 0.01);
+                ctx.closePath();
+                ctx.strokeStyle = `rgba(255, 200, 80, ${alpha * 0.55})`;
+                ctx.lineWidth = 6;
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            function getPointedSectorIndex(rotation) {
+                const sectorAngle = getSectorAngle();
+                let pointedAngle = (-Math.PI / 2 - rotation) % (2 * Math.PI);
+                if (pointedAngle < 0) pointedAngle += 2 * Math.PI;
+                const index = Math.floor(pointedAngle / sectorAngle);
+                return ((index % foodList.length) + foodList.length) % foodList.length;
+            }
+
+            function getFoodEmoji(name) {
+                const emojiMap = {
+                    '麻辣烫': '🥘',
+                    '黄焖鸡米饭': '🍗',
+                    '沙县小吃': '🥟',
+                    '兰州拉面': '🍜',
+                    '炸鸡汉堡': '🍔',
+                    '披萨': '🍕',
+                    '寿司': '🍣',
+                    '螺蛳粉': '🍲',
+                    '过桥米线': '🍜',
+                    '煲仔饭': '🍚',
+                    '盖浇饭': '🍛',
+                    '酸菜鱼': '🐟',
+                    '麻辣香锅': '🥘',
+                    '烧烤': '🍖',
+                    '炸串': '🍢',
+                    '关东煮': '🍢',
+                    '煎饼果子': '🥞',
+                    '肉夹馍': '🥙',
+                    '凉皮': '🍝',
+                    '饺子': '🥟',
+                    '馄饨': '🥟',
+                    '生煎包': '🥟',
+                    '小笼包': '🥟',
+                    '肠粉': '🍝',
+                    '蛋炒饭': '🍳',
+                    '卤肉饭': '🍛',
+                    '叉烧饭': '🍛',
+                    '烧鸭饭': '🍛',
+                    '猪脚饭': '🍖',
+                    '牛腩饭': '🍛',
+                    '咖喱饭': '🍛',
+                    '石锅拌饭': '🍚',
+                    '韩式炸鸡': '🍗',
+                    '日式拉面': '🍜',
+                    '鳗鱼饭': '🍱',
+                    '牛丼': '🍱',
+                    '泰式炒河粉': '🍝',
+                    '冬阴功': '🍲',
+                    '越南河粉': '🍜',
+                    '意大利面': '🍝',
+                    '牛排': '🥩',
+                    '沙拉': '🥗',
+                    '三明治': '🥪',
+                    '酸辣粉': '🍜',
+                    '担担面': '🍜',
+                    '重庆小面': '🍜',
+                    '热干面': '🍜',
+                    '炸酱面': '🍜',
+                    '刀削面': '🍜',
+                    '油泼面': '🍜',
+                    '葱油拌面': '🍝',
+                    '鸭血粉丝汤': '🍲',
+                    '羊肉泡馍': '🍲',
+                    '海南鸡饭': '🍛',
+                    '干锅': '🥘',
+                    '烤鱼': '🐟',
+                    '照烧鸡腿饭': '🍗',
+                    '红烧肉饭': '🍛',
+                    '糖醋里脊饭': '🍛',
+                    '鱼香肉丝饭': '🍛',
+                    '宫保鸡丁饭': '🍛',
+                    '麻婆豆腐饭': '🍛',
+                    '回锅肉饭': '🍛',
+                    '水煮肉片饭': '🍛',
+                    '番茄牛腩饭': '🍛',
+                    '烤鸡': '🍗',
+                    '炸鱼薯条': '🐟',
+                    '墨西哥卷饼': '🌯',
+                    '土耳其烤肉': '🥙',
+                    '印度咖喱': '🍛',
+                    '部队锅': '🥘',
+                    '寿喜烧': '🍲',
+                    '天妇罗': '🍤',
+                    '亲子丼': '🍱',
+                    '乌冬面': '🍜',
+                    '炒面': '🍝',
+                    '扬州炒饭': '🍚',
+                    '白切鸡饭': '🍛',
+                    '烧鹅饭': '🍛',
+                    '烤鸭饭': '🍛',
+                    '海鲜炒饭': '🍚',
+                    '龙虾卷': '🦞',
+                    '热狗': '🌭',
+                    '薯条': '🍟',
+                    '汉堡': '🍔',
+                    '纸包鱼': '🐟',
+                    '烤鱼饭': '🐟',
+                    '酸菜鱼饭': '🐟',
+                    '干锅鸡': '🥘',
+                    '干锅牛蛙': '🥘',
+                    '毛血旺': '🥘',
+                    '水煮鱼': '🐟',
+                    '剁椒鱼头': '🐟',
+                    '蒜蓉粉丝虾': '🦐',
+                    '糖醋排骨': '🍖',
+                    '京酱肉丝': '🍖',
+                    '地三鲜': '🥬',
+                    '木须肉': '🥩',
+                    '锅包肉': '🍖',
+                    '蜜汁叉烧': '🍖',
+                };
+                return emojiMap[name] || '🍽️';
+            }
+
+            function updateFoodCountBadge() {
+                foodCountBadge.textContent = foodList.length + '种';
+            }
+
+            function updateResultDisplay() {
+                const idx = getPointedSectorIndex(currentRotation);
+                if (idx >= 0 && idx < foodList.length) {
+                    const name = foodList[idx];
+                    resultFood.textContent = name;
+                    resultEmoji.textContent = getFoodEmoji(name);
+                    resultCard.classList.add('visible');
+                } else {
+                    resultFood.textContent = '--';
+                    resultEmoji.textContent = '🎉';
+                    resultCard.classList.add('visible');
+                }
+            }
+
+            // ==================== 旋转动画 ====================
+            function startSpin() {
+                if (isSpinning || isModalOpen) return;
+                if (foodList.length < 2) return;
+                isSpinning = true;
+                highlightSectorIndex = -1;
+                highlightAlpha = 0;
+                btnStart.disabled = true;
+                btnStart.classList.add('spinning-active');
+                canvas.classList.add('spinning');
+                resultCard.classList.remove('visible');
+
+                const extraRotations = (3 + Math.random() * 2.5) * 2 * Math.PI;
+                const randomOffset = Math.random() * 2 * Math.PI;
+                const totalRotation = extraRotations + randomOffset;
+                const startRotation = currentRotation;
+                const targetRotation = startRotation + totalRotation;
+                const animDuration = 3000;
+                const startTime = performance.now();
+
+                function animate(timestamp) {
+                    const elapsed = timestamp - startTime;
+                    const progress = Math.min(elapsed / animDuration, 1.0);
+                    const eased = 1 - Math.pow(1 - progress, 4.5);
+                    currentRotation = startRotation + totalRotation * eased;
+                    drawMainCanvas();
+                    if (progress < 1.0) {
+                        animationId = requestAnimationFrame(animate);
+                    } else {
+                        currentRotation = targetRotation;
+                        drawMainCanvas();
+                        onSpinComplete();
+                    }
+                }
+                animationId = requestAnimationFrame(animate);
+            }
+
+            function onSpinComplete() {
+                isSpinning = false;
+                animationId = null;
+                btnStart.disabled = false;
+                btnStart.classList.remove('spinning-active');
+                canvas.classList.remove('spinning');
+                const sectorIndex = getPointedSectorIndex(currentRotation);
+                if (sectorIndex >= 0 && sectorIndex < foodList.length) {
+                    const foodName = foodList[sectorIndex];
+                    const emoji = getFoodEmoji(foodName);
+                    resultFood.textContent = foodName;
+                    resultEmoji.textContent = emoji;
+                    resultCard.classList.add('visible');
+                    highlightSectorIndex = sectorIndex;
+                    highlightAlpha = 1.0;
+                    drawMainCanvas();
+                    startHighlightBlink();
+                } else {
+                    updateResultDisplay();
+                }
+            }
+
+            function startHighlightBlink() {
+                const blinkDuration = 2000;
+                const startTime = performance.now();
+
+                function blink(timestamp) {
+                    const elapsed = timestamp - startTime;
+                    const progress = Math.min(elapsed / blinkDuration, 1.0);
+                    const blinkFreq = 5;
+                    const fadeEnvelope = 1 - progress;
+                    const blinkValue = Math.abs(Math.cos(progress * Math.PI * blinkFreq));
+                    highlightAlpha = fadeEnvelope * (0.3 + 0.7 * blinkValue);
+                    if (highlightAlpha < 0.02) {
+                        highlightAlpha = 0;
+                        highlightSectorIndex = -1;
+                        drawMainCanvas();
+                        return;
+                    }
+                    drawMainCanvas();
+                    requestAnimationFrame(blink);
+                }
+                requestAnimationFrame(blink);
+            }
+
+            // ==================== 编辑面板渲染 ====================
+            let editingIndex = -1; // 当前正在编辑的行索引
+
+            function renderModalList() {
+                modalBody.innerHTML = '';
+                if (foodList.length === 0) {
+                    modalBody.innerHTML = '<div class="empty-hint">🍽️ 菜单为空，请在下方添加菜品</div>';
+                    return;
+                }
+                foodList.forEach((name, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'food-item';
+                    item.innerHTML = `
+                        <span class="index-num">${index + 1}</span>
+                        <span class="food-name-display" data-index="${index}" title="点击编辑">${escapeHTML(name)}</span>
+                        <button class="btn-sm btn-edit-item" data-index="${index}" title="编辑">✏️</button>
+                        <button class="btn-sm btn-delete-item" data-index="${index}" title="删除">🗑️</button>
+                    `;
+                    modalBody.appendChild(item);
+                });
+
+                // 绑定事件
+                modalBody.querySelectorAll('.food-name-display').forEach(span => {
+                    span.addEventListener('click', () => {
+                        const idx = parseInt(span.dataset.index);
+                        startInlineEdit(idx);
+                    });
+                });
+                modalBody.querySelectorAll('.btn-edit-item').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const idx = parseInt(btn.dataset.index);
+                        startInlineEdit(idx);
+                    });
+                });
+                modalBody.querySelectorAll('.btn-delete-item').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const idx = parseInt(btn.dataset.index);
+                        deleteFoodItem(idx);
+                    });
+                });
+            }
+
+            function escapeHTML(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            function startInlineEdit(index) {
+                if (editingIndex === index) return;
+                cancelInlineEdit();
+                editingIndex = index;
+                const item = modalBody.querySelectorAll('.food-item')[index];
+                if (!item) return;
+                const displaySpan = item.querySelector('.food-name-display');
+                if (!displaySpan) return;
+                const currentName = foodList[index];
+                displaySpan.style.display = 'none';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'food-name-input';
+                input.value = currentName;
+                input.maxLength = 20;
+                input.dataset.index = index;
+                displaySpan.parentNode.insertBefore(input, displaySpan.nextSibling);
+
+                const editBtn = item.querySelector('.btn-edit-item');
+                const deleteBtn = item.querySelector('.btn-delete-item');
+                if (editBtn) editBtn.style.display = 'none';
+                if (deleteBtn) deleteBtn.style.display = 'none';
+
+                const saveBtn = document.createElement('button');
+                saveBtn.className = 'btn-sm btn-save-item';
+                saveBtn.textContent = '✓';
+                saveBtn.title = '保存';
+                saveBtn.dataset.index = index;
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'btn-sm btn-cancel-item';
+                cancelBtn.textContent = '✕';
+                cancelBtn.title = '取消';
+                cancelBtn.dataset.index = index;
+
+                const btnContainer = document.createElement('div');
+                btnContainer.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
+                btnContainer.appendChild(saveBtn);
+                btnContainer.appendChild(cancelBtn);
+                item.appendChild(btnContainer);
+
+                input.focus();
+                input.select();
+
+                const saveHandler = () => {
+                    const newName = input.value.trim();
+                    if (newName && newName.length > 0) {
+                        foodList[index] = newName;
+                        saveFoodList(foodList);
+                        fullRedrawOffscreen();
+                        updateResultDisplay();
+                        cancelInlineEdit();
+                        renderModalList();
+                    }
+                };
+                const cancelHandler = () => {
+                    cancelInlineEdit();
+                    renderModalList();
+                };
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        saveHandler();
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelHandler();
+                    }
+                });
+                input.addEventListener('blur', () => {
+                    setTimeout(() => {
+                        if (editingIndex === index) {
+                            saveHandler();
+                        }
+                    }, 150);
+                });
+                saveBtn.addEventListener('click', saveHandler);
+                cancelBtn.addEventListener('click', cancelHandler);
+            }
+
+            function cancelInlineEdit() {
+                if (editingIndex >= 0) {
+                    editingIndex = -1;
+                }
+            }
+
+            function deleteFoodItem(index) {
+                if (foodList.length <= MIN_FOOD_COUNT) {
+                    alert('至少保留 ' + MIN_FOOD_COUNT + ' 种菜品，转盘才能正常运转哦~');
+                    return;
+                }
+                const name = foodList[index];
+                if (confirm(`确定要删除「${name}」吗？此操作可以恢复默认。`)) {
+                    foodList.splice(index, 1);
+                    saveFoodList(foodList);
+                    if (highlightSectorIndex >= foodList.length) {
+                        highlightSectorIndex = -1;
+                        highlightAlpha = 0;
+                    }
+                    fullRedrawOffscreen();
+                    updateResultDisplay();
+                    cancelInlineEdit();
+                    renderModalList();
+                }
+            }
+
+            function addFoodItem(name) {
+                const trimmed = name.trim();
+                if (!trimmed) return;
+                if (trimmed.length > 20) {
+                    alert('菜品名称不能超过20个字符哦~');
+                    return;
+                }
+                if (foodList.length >= MAX_FOOD_COUNT) {
+                    alert('最多支持 ' + MAX_FOOD_COUNT + ' 种菜品，已经满了~');
+                    return;
+                }
+                foodList.push(trimmed);
+                saveFoodList(foodList);
+                fullRedrawOffscreen();
+                updateResultDisplay();
+                cancelInlineEdit();
+                renderModalList();
+                // 滚动到底部
+                modalBody.scrollTop = modalBody.scrollHeight;
+            }
+
+            function resetToDefault() {
+                if (confirm('确定要恢复为默认的100种外卖菜单吗？当前修改将丢失。')) {
+                    foodList = [...DEFAULT_FOOD_LIST];
+                    saveFoodList(foodList);
+                    highlightSectorIndex = -1;
+                    highlightAlpha = 0;
+                    fullRedrawOffscreen();
+                    updateResultDisplay();
+                    cancelInlineEdit();
+                    renderModalList();
+                }
+            }
+
+            // ==================== 模态框控制 ====================
+            function openModal() {
+                if (isSpinning) return;
+                isModalOpen = true;
+                modalOverlay.classList.add('active');
+                document.body.classList.add('modal-open');
+                cancelInlineEdit();
+                renderModalList();
+                addInput.value = '';
+                addInput.focus();
+            }
+
+            function closeModal() {
+                isModalOpen = false;
+                modalOverlay.classList.remove('active');
+                document.body.classList.remove('modal-open');
+                cancelInlineEdit();
+            }
+
+            // ==================== 事件监听 ====================
+            btnStart.addEventListener('click', () => {
+                if (!isSpinning && !isModalOpen) startSpin();
+            });
+            canvas.addEventListener('click', (e) => {
+                if (!isSpinning && !isModalOpen) {
+                    const rect = canvas.getBoundingClientRect();
+                    const scaleX = canvas.width / rect.width;
+                    const scaleY = canvas.height / rect.height;
+                    const clickX = (e.clientX - rect.left) * scaleX;
+                    const clickY = (e.clientY - rect.top) * scaleY;
+                    const distFromCenter = Math.sqrt((clickX - CX) ** 2 + (clickY - CY) ** 2);
+                    if (distFromCenter <= OUTER_RADIUS + 15) {
+                        startSpin();
+                    }
+                }
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && !isSpinning && !isModalOpen && document.activeElement === document.body) {
+                    e.preventDefault();
+                    startSpin();
+                }
+                if (e.code === 'Escape' && isModalOpen) {
+                    e.preventDefault();
+                    closeModal();
+                }
+            });
+            btnOpenModal.addEventListener('click', openModal);
+            btnCloseModal.addEventListener('click', closeModal);
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) {
+                    closeModal();
+                }
+            });
+            btnAddFood.addEventListener('click', () => {
+                const name = addInput.value;
+                if (name.trim()) {
+                    addFoodItem(name);
+                    addInput.value = '';
+                    addInput.focus();
+                }
+            });
+            addInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const name = addInput.value;
+                    if (name.trim()) {
+                        addFoodItem(name);
+                        addInput.value = '';
+                        addInput.focus();
+                    }
+                }
+            });
+            btnResetDefault.addEventListener('click', resetToDefault);
+
+            // ==================== 初始化 ====================
+            function init() {
+                drawSectorsOnOffscreen();
+                currentRotation = Math.random() * 2 * Math.PI;
+                drawMainCanvas();
+                updateFoodCountBadge();
+                updateResultDisplay();
+                resultCard.classList.add('visible');
+            }
+
+            init();
+
+            console.log('🍜 外卖选择大转盘已就绪！');
+            console.log('   - 当前菜品数量：' + foodList.length + ' 种');
+            console.log('   - 点击"开始旋转"、点击转盘或按空格键开始');
+            console.log('   - 点击"编辑菜单"可修改/添加/删除菜品');
+            console.log('   - 数据自动保存到浏览器本地存储');
+            console.log('   💡 当前指针指向：' + (foodList[getPointedSectorIndex(currentRotation)] || '--'));
+        })();
+    </script>
+</body>
+</html>
