@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍜 外卖选择大转盘 - 可编辑55种美食</title>
+    <title>🍜 外卖选择大转盘 - 可编辑</title>
     <style>
         :root {
             --bg: #fff8f0;
@@ -674,7 +674,7 @@
             </h1>
             <p class="subtitle">
                 告别纠结症
-                <span class="food-count-badge" id="foodCountBadge">55种</span>
+                <span class="food-count-badge" id="foodCountBadge">几十种</span>
             </p>
         </div>
 
@@ -736,7 +736,7 @@
                 '冰粉', '豆花', '凉拌菜', '烤肉饭', '北京烤鸭',
                 '南昌拌粉', '沙拉', '瓦香鸡米饭', '酸辣粉', '担担面',
                 '重庆小面', '热干面', '炸酱面', '刀削面', '牛肉面',
-                '麦当劳', '德克士', '嫩牛五方', '干锅', '炒河粉'
+                '麦当劳', '德克士', '嫩牛五方', '干锅', '炒河粉', '醪糟汤圆'
             ];
 
             const STORAGE_KEY = 'foodWheelCustomList_v2';
@@ -1114,6 +1114,7 @@
                     '嫩牛五方': '🍔',
                     '干锅': '🥘',
                     '炒河粉': '🍝',
+                    '醪糟汤圆': '🍡',
                 };
                 return emojiMap[name] || '🍽️';
             }
@@ -1393,7 +1394,7 @@
             }
 
             function resetToDefault() {
-                if (confirm('确定要恢复为默认的55种外卖菜单吗？当前修改将丢失。')) {
+                if (confirm('确定要恢复为默认的外卖菜单吗？当前修改将丢失。')) {
                     foodList = [...DEFAULT_FOOD_LIST];
                     saveFoodList(foodList);
                     highlightSectorIndex = -1;
